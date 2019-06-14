@@ -5,30 +5,44 @@ import figures from 'figures'
 import _ from 'lodash'
 
 const createLogger = (function() {
-  return function (prefix) {
+  return function (prefix, winston) {
     let logger = {}
     ;[
-      'warning', 
+      'warn', 
       'info', 
-      'tick', 
-      'cross'
+      'success', 
+      'error'
     ].forEach(key => {
       const colorMap = {
-        warning: 'yellow',
+        warn: 'yellow',
         info: 'cyan',
-        tick: 'green',
-        cross: 'red'
+        success: 'green',
+        error: 'red'
       }
       
       logger[key] = function (msg) {
+        if (winston) {
+          try {
+            // 写入文件
+            winston[key](msg)
+          } catch (e) {}
+        }
+
+        let figureKey = key
+        if (key === 'warn') figureKey = 'warning'
+        if (key === 'success') figureKey = 'tick'
+        if (key === 'error') figureKey = 'cross'
+
+        if (typeof msg === 'object') {
+          msg = JSON.stringify(msg)
+        }
         return console.log.apply(
           console, 
-          [chalk[colorMap[key]].bold(`[${prefix.toUpperCase()}] ${figures[key]} ${msg}`)]
+          [chalk[colorMap[key]].bold(`[${prefix.toUpperCase()}] ${figures[figureKey]} ${msg}`)]
         )
       }
     })
-    logger.success = logger.tick
-    logger.error = logger.cross
+
     return logger
   }
 })()
@@ -40,23 +54,43 @@ global.createLogger = createLogger
 const extConfig = path.join(global.rootPath, 'config.js')
 // 读取系统配置文件
 
-const debug = createLogger('config')
+const logger = createLogger('config')
 
-debug.info('项目根目录：' + global.rootPath)
+logger.info('项目根目录 ' + global.rootPath)
 
+let externalConfig
 try {
   if (!fs.existsSync(extConfig)) {
-    debug.warning('系统配置文件不存在，即将创建默认配置文件')
-    debug.info('读取模板配置文件')
+    logger.warn('系统配置文件不存在，将会创建配置文件')
+    logger.info('读取模板配置文件')
     _.templateSettings.interpolate = /{{([\s\S]+?)}}/g
     const template = fs.readFileSync(path.join(__dirname, 'temp.js'))
     const compiled = _.template(template)
+    const TokenGenerate = require('tokgen')
+    const tokgen = new TokenGenerate()
     const hashChanges = {
-      hashSecret: 123
+      hashSecret: tokgen.generate(),
+      sessionSecret: tokgen.generate()
     }
     fs.writeFileSync(extConfig, compiled(hashChanges))
-    debug.success('配置文件已创建')
+    logger.success('配置文件已创建')
   }
-} catch (e) {
 
+  externalConfig = require(path.join(global.rootPath, 'config.js')).default
+} catch (e) {
+  logger.error('------------------------------------')
+  logger.error('无法创建配置文件')
+  logger.error(e)
+  logger.error('------------------------------------')
 }
+const baseConfig = {
+  isDevMode: process.env.NODE_ENV === 'development',
+  isProdMode: process.env.NODE_ENV === 'production',
+  isTestMode: process.env.NODE_ENV === 'test'
+}
+
+const envConfig = baseConfig.isDevMode 
+  ? require('./dev').default 
+  : require('./prod').default
+
+export default _.defaultsDeep(externalConfig, baseConfig, envConfig)

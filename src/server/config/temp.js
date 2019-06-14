@@ -1,6 +1,24 @@
 export default {
   hashSecret: '{{hashSecret}}',
-  app: {
-    title: ''
+  sessionSecret: '{{sessionSecret}}',
+  app: {},
+  db: {
+    options: {
+      user: process.env.MONGO_USER || '',
+      pass: process.env.MONGO_PASS || '',
+      useNewUrlParser: true
+    }
+  },
+  redis: {
+    enabled: false
+  },
+  mailer: {},
+  logging: {
+    console: {
+
+    },
+    file: {
+      enabled: true
+    }
   }
 }

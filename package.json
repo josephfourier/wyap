@@ -24,6 +24,8 @@
   "dependencies": {
     "express": "^4.17.1",
     "figures": "^3.0.0",
+    "moment": "^2.24.0",
+    "tokgen": "^1.0.0",
     "webpack": "^4.34.0",
     "webpack-cli": "^3.3.4",
     "winston": "^3.2.1"
